@@ -8,7 +8,7 @@
 import SwiftUI
 import SwiftData
 
-/// A generic form for creating or editing a SavedItem.
+/// A generic form for creating or editing a SavedItem, with live link preview.
 struct SavedItemFormView: View {
     @Binding var title: String
     @Binding var urlString: String
@@ -17,9 +17,23 @@ struct SavedItemFormView: View {
     let onCancel: () -> Void
     let onSave: () -> Void
 
+    /// Show "New Item" when title is blank, otherwise show the title.
     private var navTitle: String {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "New Item" : trimmed
+    }
+
+    /// Trim whitespace for URL parsing.
+    private var trimmedURL: String {
+        urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Convert to URL if valid and non-empty.
+    private var previewURL: URL? {
+        guard !trimmedURL.isEmpty,
+              let url = URL(string: trimmedURL)
+        else { return nil }
+        return url
     }
 
     var body: some View {
@@ -28,11 +42,23 @@ struct SavedItemFormView: View {
                 Section("Title") {
                     TextField("Enter title", text: $title)
                 }
+
                 Section("URL") {
                     TextField("Enter URL", text: $urlString)
                         .keyboardType(.URL)
                         .autocapitalization(.none)
                 }
+
+                // Live link preview under the URL field
+                if let url = previewURL {
+                    Section {
+                        LinkPreview(url: url)
+                            .frame(minHeight: 80)
+                            .cornerRadius(8)
+                            .listRowBackground(Color.clear)
+                    }
+                }
+
                 Section("Notes") {
                     TextEditor(text: $notes)
                         .frame(minHeight: 100)
@@ -91,6 +117,7 @@ struct EditSavedItemView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    /// Two-way binding to string for the URL property.
     private var urlString: Binding<String> {
         Binding(
             get: { item.url?.absoluteString ?? "" },
@@ -101,6 +128,7 @@ struct EditSavedItemView: View {
         )
     }
 
+    /// Two-way binding to string for notes property.
     private var notesString: Binding<String> {
         Binding(
             get: { item.notes ?? "" },
@@ -125,8 +153,8 @@ struct EditSavedItemView: View {
 }
 
 #Preview("Add and Edit SavedItemFormView") {
-    // Replace with proper model container in real usage
-    let container = try! ModelContainer(for: Schema([SavedItem.self]))
+    let schema = Schema([SavedItem.self])
+    let container = try! ModelContainer(for: schema)
     AddSavedItemView()
         .modelContainer(container)
     EditSavedItemView(item: SavedItem(title: "Example", notes: "Note", url: URL(string: "https://example.com")))
