@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import LinkPresentation
 
 /// Extension to provide ordinal suffix for day numbers
 extension Int {
@@ -61,6 +62,26 @@ struct ExpandingTextView: UIViewRepresentable {
     }
 }
 
+struct LinkPreview: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> LPLinkView {
+        // Initialize with an empty metadata object
+        let linkView = LPLinkView(metadata: LPLinkMetadata())
+        let provider = LPMetadataProvider()
+        provider.startFetchingMetadata(for: url) { metadata, error in
+            if let metadata = metadata {
+                DispatchQueue.main.async {
+                    linkView.metadata = metadata
+                }
+            }
+        }
+        return linkView
+    }
+
+    func updateUIView(_ uiView: LPLinkView, context: Context) { }
+}
+
 /// A detail view to display and inline-edit a SavedItem's details
 struct SavedItemDetailView: View {
     @Bindable var item: SavedItem
@@ -68,7 +89,7 @@ struct SavedItemDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                // Group title and date with reduced spacing
+                // Title + date
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.title)
                         .font(.title)
@@ -79,7 +100,14 @@ struct SavedItemDetailView: View {
                         .foregroundColor(.secondary)
                 }
 
-                // Bind optional notes to a non-optional String for editing
+                // Link preview, shown only if there's a URL
+                if let url = item.url {
+                    LinkPreview(url: url)
+                        .frame(minHeight: 80)
+                        .cornerRadius(8)
+                }
+
+                // Notes binding and expanding text view
                 let notesBinding = Binding(
                     get: { item.notes ?? "" },
                     set: { newValue in
@@ -88,7 +116,6 @@ struct SavedItemDetailView: View {
                     }
                 )
 
-                // Expanding text view (Apple Notes style)
                 ExpandingTextView(text: notesBinding)
                     .frame(minHeight: 50)
             }
@@ -98,7 +125,6 @@ struct SavedItemDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Compute a pretty string for the createdAt date
     private var prettyDate: String {
         let month = item.createdAt.formatted(.dateTime.month(.wide))
         let day = Calendar.current.component(.day, from: item.createdAt)
