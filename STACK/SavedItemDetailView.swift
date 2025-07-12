@@ -64,6 +64,7 @@ struct ExpandingTextView: UIViewRepresentable {
 /// A detail view to display and inline-edit a SavedItem's details
 struct SavedItemDetailView: View {
     @Bindable var item: SavedItem
+    @State private var showingEditSheet = false
 
     var body: some View {
         ScrollView {
@@ -101,6 +102,16 @@ struct SavedItemDetailView: View {
             .padding()
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Edit") {
+                    showingEditSheet = true
+                }
+            }
+        }
+        .sheet(isPresented: $showingEditSheet) {
+            EditSavedItemView(item: item)
+        }
     }
 
     private var prettyDate: String {

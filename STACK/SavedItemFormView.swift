@@ -51,12 +51,11 @@ struct SavedItemFormView: View {
 
                 // Live link preview under the URL field
                 if let url = previewURL {
-                    Section {
                         LinkPreview(url: url)
                             .frame(minHeight: 80)
                             .cornerRadius(8)
                             .listRowBackground(Color.clear)
-                    }
+                            .listRowInsets(EdgeInsets())
                 }
 
                 Section("Notes") {
