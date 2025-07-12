@@ -21,19 +21,7 @@ struct ContentView: View {
             List {
                 ForEach(items) { item in
                     NavigationLink {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(item.title)
-                                .font(.headline)
-                            if let notes = item.notes {
-                                Text(notes)
-                                    .font(.body)
-                            }
-                            Text("Created: \(item.createdAt, format: .dateTime)")
-                                .font(.caption)
-                            Text("Last Edited: \(item.lastEdited, format: .dateTime)")
-                                .font(.caption)
-                        }
-                        .padding()
+                        SavedItemDetailView(item: item)
                     } label: {
                         Text(item.title)
                     }
