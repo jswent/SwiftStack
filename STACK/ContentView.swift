@@ -5,21 +5,37 @@
 //  Created by James Swent on 7/9/25.
 //
 
+
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @Query(sort: [SortDescriptor(\SavedItem.createdAt, order: .reverse)]) private var items: [SavedItem]
+    @State private var showingAddSheet = false
+
+    public init() {}
 
     var body: some View {
         NavigationSplitView {
             List {
                 ForEach(items) { item in
                     NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(item.title)
+                                .font(.headline)
+                            if let notes = item.notes {
+                                Text(notes)
+                                    .font(.body)
+                            }
+                            Text("Created: \(item.createdAt, format: .dateTime)")
+                                .font(.caption)
+                            Text("Last Edited: \(item.lastEdited, format: .dateTime)")
+                                .font(.caption)
+                        }
+                        .padding()
                     } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+                        Text(item.title)
                     }
                 }
                 .onDelete(perform: deleteItems)
@@ -29,33 +45,27 @@ struct ContentView: View {
                     EditButton()
                 }
                 ToolbarItem {
-                    Button(action: addItem) {
+                    Button(action: { showingAddSheet = true }) {
                         Label("Add Item", systemImage: "plus")
                     }
                 }
+            }
+            .sheet(isPresented: $showingAddSheet) {
+                AddSavedItemView()
             }
         } detail: {
             Text("Select an item")
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
     private func deleteItems(offsets: IndexSet) {
         withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
+            offsets.map { items[$0] }.forEach(modelContext.delete)
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .modelContainer(for: SavedItem.self, inMemory: true)
 }
