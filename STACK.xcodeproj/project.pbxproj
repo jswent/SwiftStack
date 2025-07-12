@@ -29,9 +29,22 @@
 		E7E1318F2E1F71EC000E67AA /* STACKUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = STACKUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E7D0D5F92E22DE2C0050F075 /* Exceptions for "STACK" folder in "STACK" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E7E131752E1F71EB000E67AA /* STACK */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E7E131782E1F71EB000E67AA /* STACK */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E7D0D5F92E22DE2C0050F075 /* Exceptions for "STACK" folder in "STACK" target */,
+			);
 			path = STACK;
 			sourceTree = "<group>";
 		};
