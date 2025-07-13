@@ -37,6 +37,11 @@ struct ExpandingTextView: UIViewRepresentable {
         // No border or background
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
+        // Wrap on word
+        textView.textContainer.widthTracksTextView = true
+        textView.textContainer.lineBreakMode = .byWordWrapping
+        textView.textContainer.size.width = UIScreen.main.bounds.width - 32
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return textView
     }
 
@@ -97,7 +102,7 @@ struct SavedItemDetailView: View {
                 )
 
                 ExpandingTextView(text: notesBinding)
-                    .frame(minHeight: 50)
+                    .frame(maxWidth: UIScreen.main.bounds.width - 32, minHeight: 50)
             }
             .padding()
         }
