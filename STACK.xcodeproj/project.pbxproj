@@ -48,16 +48,6 @@
 			path = STACK;
 			sourceTree = "<group>";
 		};
-		E7E131882E1F71EC000E67AA /* STACKTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = STACKTests;
-			sourceTree = "<group>";
-		};
-		E7E131922E1F71EC000E67AA /* STACKUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = STACKUITests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,8 +79,6 @@
 			isa = PBXGroup;
 			children = (
 				E7E131782E1F71EB000E67AA /* STACK */,
-				E7E131882E1F71EC000E67AA /* STACKTests */,
-				E7E131922E1F71EC000E67AA /* STACKUITests */,
 				E7E131772E1F71EB000E67AA /* Products */,
 			);
 			sourceTree = "<group>";
@@ -143,9 +131,6 @@
 			dependencies = (
 				E7E131872E1F71EC000E67AA /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				E7E131882E1F71EC000E67AA /* STACKTests */,
-			);
 			name = STACKTests;
 			packageProductDependencies = (
 			);
@@ -165,9 +150,6 @@
 			);
 			dependencies = (
 				E7E131912E1F71EC000E67AA /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E7E131922E1F71EC000E67AA /* STACKUITests */,
 			);
 			name = STACKUITests;
 			packageProductDependencies = (
