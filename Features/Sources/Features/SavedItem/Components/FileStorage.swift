@@ -34,9 +34,9 @@ public enum FileStorage {
     /// - Parameters:
     ///   - data: The image data to save
     ///   - directory: The subdirectory name (default: "Photos")
-    /// - Returns: URL of the saved file
+    /// - Returns: Relative path from Application Support directory
     /// - Throws: StorageError if the operation fails
-    public static func saveImageData(_ data: Data, directory: String = "Photos") throws -> URL {
+    public static func saveImageData(_ data: Data, directory: String = "Photos") throws -> String {
         let baseURL = try getApplicationSupportDirectory()
         let photosURL = baseURL.appendingPathComponent(directory)
         
@@ -54,7 +54,8 @@ public enum FileStorage {
             throw StorageError.failedToWriteFile
         }
         
-        return fileURL
+        // Return relative path
+        return "\(directory)/\(filename)"
     }
     
     /// Generates a thumbnail from image data using SwiftUI's Image and ImageRenderer
@@ -108,17 +109,19 @@ public enum FileStorage {
     /// - Parameters:
     ///   - data: The thumbnail data to save
     ///   - directory: The directory path (default: "Photos/Thumbnails")
-    /// - Returns: URL of the saved thumbnail file
+    /// - Returns: Relative path of the saved thumbnail file
     /// - Throws: StorageError if the operation fails
-    public static func saveThumbnailData(_ data: Data, directory: String = "Photos/Thumbnails") throws -> URL {
+    public static func saveThumbnailData(_ data: Data, directory: String = "Photos/Thumbnails") throws -> String {
         return try saveImageData(data, directory: directory)
     }
     
-    /// Deletes a file at the given URL
-    /// - Parameter url: The file URL to delete
+    /// Deletes a file at the given relative path
+    /// - Parameter relativePath: The relative path from Application Support
     /// - Throws: File system errors
-    public static func deleteFile(at url: URL) throws {
-        try FileManager.default.removeItem(at: url)
+    public static func deleteFile(atPath relativePath: String) throws {
+        let baseURL = try getApplicationSupportDirectory()
+        let fileURL = baseURL.appendingPathComponent(relativePath)
+        try FileManager.default.removeItem(at: fileURL)
     }
     
     /// Gets the Application Support directory URL
@@ -140,23 +143,23 @@ public extension FileStorage {
     /// - Parameters:
     ///   - data: The original image data
     ///   - maxThumbnailDimension: Maximum dimension for thumbnail
-    /// - Returns: Tuple containing (imageURL, thumbnailURL)
+    /// - Returns: Tuple containing (imagePath, thumbnailPath) as relative paths
     /// - Throws: StorageError if any operation fails
     @MainActor
-    static func saveImageWithThumbnail(_ data: Data, maxThumbnailDimension: CGFloat = 200) throws -> (imageURL: URL, thumbnailURL: URL) {
-        let imageURL = try saveImageData(data)
+    static func saveImageWithThumbnail(_ data: Data, maxThumbnailDimension: CGFloat = 200) throws -> (imagePath: String, thumbnailPath: String) {
+        let imagePath = try saveImageData(data)
         let thumbnailData = try generateThumbnail(from: data, maxDimension: maxThumbnailDimension)
-        let thumbnailURL = try saveThumbnailData(thumbnailData)
+        let thumbnailPath = try saveThumbnailData(thumbnailData)
         
-        return (imageURL, thumbnailURL)
+        return (imagePath, thumbnailPath)
     }
     
     /// Deletes both the image and thumbnail files for a photo
     /// - Parameters:
-    ///   - imageURL: URL of the main image file
-    ///   - thumbnailURL: URL of the thumbnail file
-    static func deleteImageAndThumbnail(imageURL: URL, thumbnailURL: URL) {
-        try? deleteFile(at: imageURL)
-        try? deleteFile(at: thumbnailURL)
+    ///   - imagePath: Relative path of the main image file
+    ///   - thumbnailPath: Relative path of the thumbnail file
+    static func deleteImageAndThumbnail(imagePath: String, thumbnailPath: String) {
+        try? deleteFile(atPath: imagePath)
+        try? deleteFile(atPath: thumbnailPath)
     }
 }

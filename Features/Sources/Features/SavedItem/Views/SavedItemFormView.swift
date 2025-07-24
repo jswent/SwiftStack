@@ -258,8 +258,8 @@ public struct AddSavedItemView: View {
     private func addPhotos(_ photoDataArray: [Data]) async {
         for data in photoDataArray {
             do {
-                let (imageURL, thumbnailURL) = try FileStorage.saveImageWithThumbnail(data)
-                let photo = Photo(fileURL: imageURL, thumbnailURL: thumbnailURL)
+                let (imagePath, thumbnailPath) = try FileStorage.saveImageWithThumbnail(data)
+                let photo = Photo(filePath: imagePath, thumbnailPath: thumbnailPath)
                 
                 modelContext.insert(photo)
                 photos.append(photo)
@@ -277,8 +277,8 @@ public struct AddSavedItemView: View {
         
         // Delete files from disk
         FileStorage.deleteImageAndThumbnail(
-            imageURL: photo.fileURL,
-            thumbnailURL: photo.thumbnailURL
+            imagePath: photo.filePath,
+            thumbnailPath: photo.thumbnailPath
         )
         
         // Delete from SwiftData
@@ -368,8 +368,8 @@ public struct EditSavedItemView: View {
     private func addPhotos(_ photoDataArray: [Data]) async {
         for data in photoDataArray {
             do {
-                let (imageURL, thumbnailURL) = try FileStorage.saveImageWithThumbnail(data)
-                let photo = Photo(fileURL: imageURL, thumbnailURL: thumbnailURL)
+                let (imagePath, thumbnailPath) = try FileStorage.saveImageWithThumbnail(data)
+                let photo = Photo(filePath: imagePath, thumbnailPath: thumbnailPath)
                 
                 // Link to the existing item immediately and mark as linked
                 photo.savedItem = item
@@ -391,8 +391,8 @@ public struct EditSavedItemView: View {
         
         // Delete files from disk
         FileStorage.deleteImageAndThumbnail(
-            imageURL: photo.fileURL,
-            thumbnailURL: photo.thumbnailURL
+            imagePath: photo.filePath,
+            thumbnailPath: photo.thumbnailPath
         )
         
         // Delete from SwiftData
