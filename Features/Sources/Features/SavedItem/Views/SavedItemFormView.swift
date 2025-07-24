@@ -87,11 +87,7 @@ public struct SavedItemFormView: View {
                         .listRowInsets(EdgeInsets())
             }
 
-            Section("Notes") {
-                TextEditor(text: $notes)
-                    .frame(minHeight: 100)
-            }
-            
+            // Photos Section
             Section("Photos") {
                 PhotosPicker(
                     selection: $pickerItems,
@@ -125,6 +121,11 @@ public struct SavedItemFormView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+            }
+            // Notes Section
+            Section("Notes") {
+                TextEditor(text: $notes)
+                    .frame(minHeight: 100)
             }
         }
         .navigationTitle(navTitle)
@@ -211,197 +212,6 @@ private struct PhotoThumbnailView: View {
             }
             .padding(.vertical, 4)
         }
-    }
-}
-
-/// A view for adding a new SavedItem.
-public struct AddSavedItemView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var title: String
-    @State private var urlString: String
-    @State private var notes: String
-    @State private var photos: [Photo] = []
-    
-    public init(initialTitle: String = "", initialURL: String = "", initialNotes: String = "") {
-        _title = State(initialValue: initialTitle)
-        _urlString = State(initialValue: initialURL)
-        _notes = State(initialValue: initialNotes)
-    }
-
-    public var body: some View {
-        NavigationView {
-            SavedItemFormView(
-                title: $title,
-                urlString: $urlString,
-                notes: $notes,
-                photos: photos,
-                onAddPhotos: addPhotos,
-                onDeletePhoto: deletePhoto,
-                onCancel: { dismiss() },
-                onSave: saveAndDismiss
-            )
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save", action: saveAndDismiss)
-                        .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-    }
-    
-    @MainActor
-    private func addPhotos(_ photoDataArray: [Data]) async {
-        for data in photoDataArray {
-            do {
-                let (imagePath, thumbnailPath) = try FileStorage.saveImageWithThumbnail(data)
-                let photo = Photo(filePath: imagePath, thumbnailPath: thumbnailPath)
-                
-                modelContext.insert(photo)
-                photos.append(photo)
-            } catch {
-                print("Error saving photo: \(error)")
-            }
-        }
-    }
-    
-    private func deletePhoto(_ photo: Photo) {
-        // Remove from local array
-        if let index = photos.firstIndex(of: photo) {
-            photos.remove(at: index)
-        }
-        
-        // Delete files from disk
-        FileStorage.deleteImageAndThumbnail(
-            imagePath: photo.filePath,
-            thumbnailPath: photo.thumbnailPath
-        )
-        
-        // Delete from SwiftData
-        modelContext.delete(photo)
-    }
-
-    private func saveAndDismiss() {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        let url = trimmed.isEmpty ? nil : URL(string: trimmed)
-
-        let newItem = SavedItem(
-            title: title,
-            notes: notes.isEmpty ? nil : notes,
-            url: url
-        )
-        
-        // Link all photos to the new item and mark them as linked
-        newItem.photos = photos
-        for photo in photos {
-            photo.savedItem = newItem
-            photo.isLinked = true
-        }
-        
-        modelContext.insert(newItem)
-        
-        // Post notification for share extension coordination
-        NotificationCenter.default.post(name: .savedItemCreated, object: newItem)
-        
-        dismiss()
-    }
-}
-
-/// A view for editing an existing SavedItem.
-public struct EditSavedItemView: View {
-    @Bindable var item: SavedItem
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-    
-    public init(item: SavedItem) {
-        self.item = item
-    }
-
-    /// Two-way binding to string for the URL property.
-    private var urlString: Binding<String> {
-        Binding(
-            get: { item.url?.absoluteString ?? "" },
-            set: { newValue in
-                let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                item.url = trimmed.isEmpty ? nil : URL(string: trimmed)
-            }
-        )
-    }
-
-    /// Two-way binding to string for notes property.
-    private var notesString: Binding<String> {
-        Binding(
-            get: { item.notes ?? "" },
-            set: { item.notes = $0.isEmpty ? nil : $0 }
-        )
-    }
-
-    public var body: some View {
-        NavigationView {
-            SavedItemFormView(
-                title: $item.title,
-                urlString: urlString,
-                notes: notesString,
-                photos: item.photos,
-                onAddPhotos: addPhotos,
-                onDeletePhoto: deletePhoto,
-                onCancel: { dismiss() },
-                onSave: finalizeEdit
-            )
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save", action: finalizeEdit)
-                        .disabled(item.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-    }
-    
-    @MainActor
-    private func addPhotos(_ photoDataArray: [Data]) async {
-        for data in photoDataArray {
-            do {
-                let (imagePath, thumbnailPath) = try FileStorage.saveImageWithThumbnail(data)
-                let photo = Photo(filePath: imagePath, thumbnailPath: thumbnailPath)
-                
-                // Link to the existing item immediately and mark as linked
-                photo.savedItem = item
-                photo.isLinked = true
-                
-                modelContext.insert(photo)
-                item.photos.append(photo)
-            } catch {
-                print("Error saving photo: \(error)")
-            }
-        }
-    }
-    
-    private func deletePhoto(_ photo: Photo) {
-        // Remove from the item's photos
-        if let index = item.photos.firstIndex(of: photo) {
-            item.photos.remove(at: index)
-        }
-        
-        // Delete files from disk
-        FileStorage.deleteImageAndThumbnail(
-            imagePath: photo.filePath,
-            thumbnailPath: photo.thumbnailPath
-        )
-        
-        // Delete from SwiftData
-        modelContext.delete(photo)
-    }
-
-    private func finalizeEdit() {
-        item.lastEdited = Date()
-        dismiss()
     }
 }
 
