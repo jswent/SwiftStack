@@ -23,5 +23,7 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Stack needs access to your photo library to attach images to your saved items.</string>
 </dict>
 </plist>
