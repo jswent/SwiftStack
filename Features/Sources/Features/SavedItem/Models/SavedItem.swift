@@ -13,13 +13,16 @@ public final class SavedItem: Identifiable {
     @Attribute(.unique) public var id: UUID
     public var title: String
     public var notes: String?
-    public var url: URL?            // ← new optional URL property
+    public var url: URL?
     public var createdAt: Date
     public var lastEdited: Date
+    
+    @Relationship(deleteRule: .cascade)
+    public var photos: [Photo] = []
 
     public init(title: String,
          notes: String? = nil,
-         url: URL? = nil) { // ← accept URL in initializer
+         url: URL? = nil) {
         self.id = UUID()
         self.title = title
         self.notes = notes

@@ -46,7 +46,7 @@ struct SwiftUISampleAppApp: App {
 // MARK: - Shared Model Container
 
 private func createSharedModelContainer() throws -> ModelContainer {
-    let schema = Schema([SavedItem.self])
+    let schema = Schema([SavedItem.self, Photo.self])
     let configuration = ModelConfiguration(
         schema: schema,
         allowsSave: true,
