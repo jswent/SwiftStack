@@ -24,6 +24,8 @@ public struct SavedItemFormView: View {
     
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var isProcessingPhotos = false
+    @State private var showingDeleteConfirmation = false
+    @State private var photoToDelete: Photo?
     
     public init(
         title: Binding<String>,
@@ -105,7 +107,8 @@ public struct SavedItemFormView: View {
                         HStack(spacing: 12) {
                             ForEach(photos, id: \.id) { photo in
                                 PhotoThumbnailView(photo: photo) {
-                                    onDeletePhoto(photo)
+                                    photoToDelete = photo
+                                    showingDeleteConfirmation = true
                                 }
                             }
                         }
@@ -129,6 +132,23 @@ public struct SavedItemFormView: View {
             Task {
                 await processPhotoItems(items)
             }
+        }
+        .confirmationDialog(
+            "Delete Photo",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let photo = photoToDelete {
+                    onDeletePhoto(photo)
+                    photoToDelete = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                photoToDelete = nil
+            }
+        } message: {
+            Text("Are you sure you want to delete this photo? This action cannot be undone.")
         }
     }
     
@@ -166,27 +186,30 @@ private struct PhotoThumbnailView: View {
     let onDelete: () -> Void
     
     var body: some View {
-        AsyncImage(url: photo.thumbnailURL) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Rectangle()
-                .fill(Color.gray.opacity(0.3))
-                .overlay {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                }
-        }
-        .frame(width: 80, height: 80)
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .overlay(alignment: .topTrailing) {
-            Button(action: onDelete) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.white)
-                    .background(Color.black.opacity(0.6), in: Circle())
+        VStack {
+            AsyncImage(url: photo.thumbnailURL) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .overlay {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                    }
             }
-            .offset(x: 4, y: -4)
+            .frame(width: 80, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(alignment: .topTrailing) {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.white)
+                        .background(Color.black.opacity(0.6), in: Circle())
+                }
+                .offset(x: 4, y: -4)
+            }
+            .padding(.vertical, 4)
         }
     }
 }
