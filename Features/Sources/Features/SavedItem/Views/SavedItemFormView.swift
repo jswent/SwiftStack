@@ -100,15 +100,17 @@ public struct SavedItemFormView: View {
                 
                 if !photos.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(photos, id: \.id) { photo in
-                                PhotoThumbnailView(photo: photo) {
-                                    photoToDelete = photo
-                                    showingDeleteConfirmation = true
+                        VStack {
+                            HStack(spacing: 12) {
+                                ForEach(photos, id: \.id) { photo in
+                                    PhotoThumbnailView(photo: photo) {
+                                        photoToDelete = photo
+                                        showingDeleteConfirmation = true
+                                    }
                                 }
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.vertical, 4)
                     }
                 }
                 
@@ -187,30 +189,27 @@ private struct PhotoThumbnailView: View {
     let onDelete: () -> Void
     
     var body: some View {
-        VStack {
-            AsyncImage(url: photo.thumbnailURL) { image in
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .overlay {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                    }
-            }
-            .frame(width: 80, height: 80)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(alignment: .topTrailing) {
-                Button(action: onDelete) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.white)
-                        .background(Color.black.opacity(0.6), in: Circle())
+        AsyncImage(url: photo.thumbnailURL) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } placeholder: {
+            Rectangle()
+                .fill(Color.gray.opacity(0.3))
+                .overlay {
+                    ProgressView()
+                        .scaleEffect(0.6)
                 }
-                .offset(x: 4, y: -4)
+        }
+        .frame(width: 80, height: 80)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(alignment: .topTrailing) {
+            Button(action: onDelete) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.white)
+                    .background(Color.black.opacity(0.6), in: Circle())
             }
-            .padding(.vertical, 4)
+            .offset(x: 4, y: -4)
         }
     }
 }
