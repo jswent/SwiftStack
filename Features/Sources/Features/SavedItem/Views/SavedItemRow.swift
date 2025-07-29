@@ -18,13 +18,13 @@ struct SavedItemRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title)
                     .font(.headline)
-                    .lineLimit(2)
+                    .lineLimit(1)
                 
                 if let notes = item.notes, !notes.isEmpty {
                     Text(notes)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                        .lineLimit(3)
+                        .lineLimit(1)
                 }
                 
                 HStack(spacing: 8) {

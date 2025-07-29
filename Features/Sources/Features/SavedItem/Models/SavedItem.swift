@@ -36,11 +36,13 @@ public final class SavedItem: Identifiable {
 #if DEBUG
 extension SavedItem {
     static var mock: Self {
-        return .init(
+        let item = SavedItem(
             title: "Sample Saved Item",
             notes: "This is a sample note for testing purposes",
             url: URL(string: "https://example.com")
         )
+        item.photos = [.mock, .mock] // Add mock photos for testing carousel
+        return item
     }
 }
 #endif
