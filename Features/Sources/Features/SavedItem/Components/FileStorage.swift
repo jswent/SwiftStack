@@ -124,11 +124,11 @@ public enum FileStorage {
         try FileManager.default.removeItem(at: fileURL)
     }
     
-    /// Gets the Application Support directory URL
-    /// - Returns: URL of the Application Support directory
+    /// Gets the shared container directory URL for cross-process file access
+    /// - Returns: URL of the shared app group container directory
     /// - Throws: StorageError if directory cannot be accessed
     private static func getApplicationSupportDirectory() throws -> URL {
-        guard let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+        guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.jswent.STACK") else {
             throw StorageError.failedToCreateDirectory
         }
         return url

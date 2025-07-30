@@ -27,16 +27,16 @@ public final class Photo: Identifiable {
         self.isLinked = false // Start as unlinked (orphaned)
     }
     
-    // Computed properties to get full URLs
+    // Computed properties to get full URLs from shared app group container
     public var fileURL: URL? {
-        guard let baseURL = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false) else {
+        guard let baseURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.jswent.STACK") else {
             return nil
         }
         return baseURL.appendingPathComponent(filePath)
     }
     
     public var thumbnailURL: URL? {
-        guard let baseURL = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false) else {
+        guard let baseURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.jswent.STACK") else {
             return nil
         }
         return baseURL.appendingPathComponent(thumbnailPath)
