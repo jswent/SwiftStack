@@ -16,8 +16,10 @@ public struct SavedItemListView: View {
         case editItem(SavedItem)
     }
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Query(sort: [SortDescriptor(\SavedItem.lastEdited, order: .reverse)]) private var items: [SavedItem]
     @State private var isRefreshing = false
+    @State private var groupedItems: [(String, [SavedItem])] = []
     
     let onNavigation: (NavigationTarget) -> Void
     
@@ -27,7 +29,7 @@ public struct SavedItemListView: View {
     
     // Group items into Today, Yesterday, Previous 7 Days, Previous 30 Days,
     // then by month (current year only) and by year for older items.
-    private var groupedItems: [(String, [SavedItem])] {
+    private func calculateGroupedItems() -> [(String, [SavedItem])] {
         let calendar = Calendar.current
         let now = Date()
         guard let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: now),
@@ -109,9 +111,19 @@ public struct SavedItemListView: View {
         return result
     }
     
+    private func recalculateGroupings() async {
+        let newGroupings = calculateGroupedItems()
+        await MainActor.run {
+            groupedItems = newGroupings
+        }
+    }
+    
     private func refreshData() async {
         // Simulate a brief delay for better UX
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        // Recalculate groupings after refresh
+        await recalculateGroupings()
         
         // Can implement cloud sync later
     }
@@ -164,6 +176,24 @@ public struct SavedItemListView: View {
                     onNavigation(.addItem)
                 } label: {
                     Image(systemName: "plus")
+                }
+            }
+        }
+        .task {
+            // Initial grouping calculation
+            await recalculateGroupings()
+        }
+        .onChange(of: items) { _, _ in
+            // Recalculate when items change
+            Task {
+                await recalculateGroupings()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Recalculate when app becomes active (handles date changes)
+            if newPhase == .active {
+                Task {
+                    await recalculateGroupings()
                 }
             }
         }
