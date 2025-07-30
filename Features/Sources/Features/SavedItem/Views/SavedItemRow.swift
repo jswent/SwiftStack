@@ -38,6 +38,12 @@ struct SavedItemRow: View {
                             .foregroundColor(.blue)
                     }
                     
+                    if !item.photos.isEmpty {
+                        Image(systemName: item.photos.count == 1 ? "photo" : "photo.on.rectangle.angled")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    
                     Spacer()
                 }
             }
