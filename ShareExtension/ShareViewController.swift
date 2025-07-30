@@ -54,6 +54,104 @@ class ShareViewController: UIViewController {
     }
     
     private func processAttachments(_ attachments: [NSItemProvider], completion: @escaping (Result<ShareData, Error>) -> Void) {
+        let group = DispatchGroup()
+        
+        // Collect all content types
+        var shareTitle = ""
+        var shareURL = ""
+        var shareNotes = ""
+        var sharePhotos: [Data] = []
+        var hasWebContent = false
+        var processingError: Error?
+        
+        // Process images if present
+        let imageProviders = attachments.filter { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
+        if !imageProviders.isEmpty {
+            group.enter()
+            processImages(from: imageProviders) { photos in
+                sharePhotos = photos
+                group.leave()
+            }
+        }
+        
+        // Process web content (JavaScript preprocessing or URL)
+        group.enter()
+        processWebContent(from: attachments) { result in
+            switch result {
+            case .success(let webData):
+                shareTitle = webData.title
+                shareURL = webData.url
+                shareNotes = webData.notes
+                hasWebContent = true
+            case .failure(let error):
+                if imageProviders.isEmpty {
+                    // Only set error if we have no images to fall back on
+                    processingError = error
+                }
+            }
+            group.leave()
+        }
+        
+        // Complete when all processing is done
+        group.notify(queue: .main) {
+            if let error = processingError, sharePhotos.isEmpty {
+                completion(.failure(error))
+            } else if !hasWebContent && sharePhotos.isEmpty {
+                completion(.failure(ShareExtensionError.noValidContent))
+            } else {
+                let data = ShareData(
+                    title: shareTitle,
+                    url: shareURL,
+                    notes: shareNotes,
+                    photos: sharePhotos
+                )
+                completion(.success(data))
+            }
+        }
+    }
+    
+    private func processImages(from providers: [NSItemProvider], completion: @escaping ([Data]) -> Void) {
+        let group = DispatchGroup()
+        var collectedPhotos: [Data] = []
+        
+        logger.info("Processing \(providers.count) image attachments")
+        
+        for provider in providers {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: UTType.image.identifier, options: nil) { item, error in
+                defer { group.leave() }
+                
+                if let error = error {
+                    self.logger.error("Error loading image: \(error.localizedDescription)")
+                    return
+                }
+                
+                var imageData: Data?
+                
+                // Handle different data types (following iOS best practices)
+                if let data = item as? Data {
+                    imageData = data
+                } else if let url = item as? URL {
+                    imageData = try? Data(contentsOf: url)
+                } else if let image = item as? UIImage {
+                    imageData = image.pngData()
+                }
+                
+                if let data = imageData {
+                    collectedPhotos.append(data)
+                    self.logger.info("Successfully processed image data (\(data.count) bytes)")
+                } else {
+                    self.logger.error("Failed to extract image data from item")
+                }
+            }
+        }
+        
+        group.notify(queue: .main) {
+            completion(collectedPhotos)
+        }
+    }
+    
+    private func processWebContent(from attachments: [NSItemProvider], completion: @escaping (Result<(title: String, url: String, notes: String), Error>) -> Void) {
         // First try JavaScript preprocessing results
         let propertyListProvider = attachments.first { $0.hasItemConformingToTypeIdentifier(UTType.propertyList.identifier) }
         
@@ -61,26 +159,26 @@ class ShareViewController: UIViewController {
             provider.loadItem(forTypeIdentifier: UTType.propertyList.identifier, options: nil) { item, error in
                 if let plistDict = item as? [String: Any],
                    let jsResults = plistDict["NSExtensionJavaScriptPreprocessingResultsKey"] as? [String: Any] {
-                    let data = ShareData(
+                    let result = (
                         title: jsResults["title"] as? String ?? "",
                         url: jsResults["url"] as? String ?? "",
                         notes: jsResults["description"] as? String ?? ""
                     )
-                    completion(.success(data))
+                    completion(.success(result))
                     return
                 }
                 
                 // If JavaScript processing fails, try URL fallback
-                self.tryURLFallback(attachments: attachments, completion: completion)
+                self.tryWebURLFallback(attachments: attachments, completion: completion)
             }
             return
         }
         
         // No JavaScript preprocessing, try URL fallback directly
-        tryURLFallback(attachments: attachments, completion: completion)
+        tryWebURLFallback(attachments: attachments, completion: completion)
     }
     
-    private func tryURLFallback(attachments: [NSItemProvider], completion: @escaping (Result<ShareData, Error>) -> Void) {
+    private func tryWebURLFallback(attachments: [NSItemProvider], completion: @escaping (Result<(title: String, url: String, notes: String), Error>) -> Void) {
         let urlProvider = attachments.first { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }
         
         guard let provider = urlProvider else {
@@ -95,12 +193,12 @@ class ShareViewController: UIViewController {
             }
             
             if let url = item as? URL {
-                let data = ShareData(
+                let result = (
                     title: "",
                     url: url.absoluteString,
                     notes: ""
                 )
-                completion(.success(data))
+                completion(.success(result))
             } else {
                 completion(.failure(ShareExtensionError.invalidURL))
             }
@@ -108,7 +206,7 @@ class ShareViewController: UIViewController {
     }
     
     private func showSwiftUIView(with data: ShareData) {
-        logger.info("Showing SwiftUI view with data: title='\(data.title)', url='\(data.url)'")
+        logger.info("Showing SwiftUI view with data: title='\(data.title)', url='\(data.url)', photos=\(data.photos.count)")
         
         let contentView = UIHostingController(
             rootView: ShareExtensionView(shareData: data)
@@ -143,6 +241,7 @@ struct ShareData {
     let title: String
     let url: String
     let notes: String
+    let photos: [Data]
 }
 
 // MARK: - Errors
@@ -153,6 +252,7 @@ enum ShareExtensionError: LocalizedError {
     case invalidURL
     case invalidJavaScriptResults
     case timeout
+    case noValidContent
     
     var errorDescription: String? {
         switch self {
@@ -166,6 +266,8 @@ enum ShareExtensionError: LocalizedError {
             return "Could not process shared web page"
         case .timeout:
             return "Request timed out"
+        case .noValidContent:
+            return "No valid content found to share"
         }
     }
 }
@@ -201,6 +303,8 @@ struct ShareExtensionFormView: View {
     @State private var title: String
     @State private var urlString: String
     @State private var notes: String
+    @State private var photos: [Photo] = []
+    @State private var isProcessingPhotos = false
     
     init(shareData: ShareData) {
         self.shareData = shareData
@@ -209,12 +313,15 @@ struct ShareExtensionFormView: View {
         self._notes = State(initialValue: shareData.notes)
     }
     
-    var body: some View {            // Form content
+    var body: some View {
         NavigationView {
             SavedItemFormView(
                 title: $title,
                 urlString: $urlString,
                 notes: $notes,
+                photos: photos,
+                onAddPhotos: { _ in }, // Disable adding new photos in share extension
+                onDeletePhoto: deletePhoto,
                 onCancel: cancelExtension,
                 onSave: saveAndComplete
             )
@@ -229,7 +336,77 @@ struct ShareExtensionFormView: View {
                         .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+            .task {
+                await processSharedPhotos()
+            }
         }
+    }
+    
+    @MainActor
+    private func processSharedPhotos() async {
+        guard !shareData.photos.isEmpty, photos.isEmpty else { return }
+        
+        isProcessingPhotos = true
+        defer { isProcessingPhotos = false }
+        
+        for photoData in shareData.photos {
+            do {
+                let (imagePath, thumbnailPath) = try FileStorage.saveImageWithThumbnail(photoData)
+                let photo = Photo(filePath: imagePath, thumbnailPath: thumbnailPath)
+                
+                modelContext.insert(photo)
+                photos.append(photo)
+                
+                // Cache the images asynchronously for immediate display
+                Task.detached {
+                    await self.cacheImagesForPhoto(originalData: photoData, photo: photo)
+                }
+            } catch {
+                print("Error saving photo in share extension: \(error)")
+            }
+        }
+    }
+    
+    private func cacheImagesForPhoto(originalData: Data, photo: Photo) async {
+        guard let fullImage = UIImage(data: originalData) else { return }
+        
+        // Cache full image on main actor
+        await MainActor.run {
+            PhotoPreviewCache.shared.setFullImage(fullImage, for: photo.id)
+        }
+        
+        // Generate and cache thumbnail if needed
+        do {
+            let thumbnailData = try await MainActor.run {
+                try FileStorage.generateThumbnail(from: originalData)
+            }
+            if let thumbnailImage = UIImage(data: thumbnailData) {
+                await MainActor.run {
+                    PhotoPreviewCache.shared.setThumbnail(thumbnailImage, for: photo.id)
+                }
+            }
+        } catch {
+            print("Error generating thumbnail for cache: \(error)")
+        }
+    }
+    
+    private func deletePhoto(_ photo: Photo) {
+        // Remove from local array
+        if let index = photos.firstIndex(of: photo) {
+            photos.remove(at: index)
+        }
+        
+        // Delete files from disk
+        FileStorage.deleteImageAndThumbnail(
+            imagePath: photo.filePath,
+            thumbnailPath: photo.thumbnailPath
+        )
+        
+        // Invalidate cache
+        PhotoPreviewCache.shared.removeImages(for: photo.id)
+        
+        // Delete from SwiftData
+        modelContext.delete(photo)
     }
     
     private func cancelExtension() {
@@ -246,6 +423,14 @@ struct ShareExtensionFormView: View {
             notes: notes.isEmpty ? nil : notes,
             url: url
         )
+        
+        // Link all photos to the new item and mark them as linked
+        newItem.photos = photos
+        for photo in photos {
+            photo.savedItem = newItem
+            photo.isLinked = true
+        }
+        
         modelContext.insert(newItem)
         
         // Ensure save is called before closing extension
