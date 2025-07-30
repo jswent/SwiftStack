@@ -11,7 +11,7 @@ import Foundation
 // MARK: - Caching Protocol
 
 /// Protocol for photo preview caching implementations
-protocol PhotoPreviewCaching {
+public protocol PhotoPreviewCaching {
     func getFullImage(for photoId: UUID) -> UIImage?
     func getThumbnail(for photoId: UUID) -> UIImage?
     func setFullImage(_ image: UIImage, for photoId: UUID)
@@ -22,7 +22,7 @@ protocol PhotoPreviewCaching {
 
 // MARK: - Cache Entry Types
 
-enum PhotoCacheType {
+public enum PhotoCacheType {
     case fullImage
     case thumbnail
 }
@@ -31,8 +31,8 @@ enum PhotoCacheType {
 
 /// In-memory photo cache with separate pools for full images and thumbnails
 @MainActor
-final class PhotoPreviewCache: PhotoPreviewCaching {
-    static let shared = PhotoPreviewCache()
+public final class PhotoPreviewCache: PhotoPreviewCaching {
+    public static let shared = PhotoPreviewCache()
     
     private let fullImageCache: PhotoMemoryCache
     private let thumbnailCache: PhotoMemoryCache
@@ -50,28 +50,28 @@ final class PhotoPreviewCache: PhotoPreviewCaching {
         )
     }
     
-    func getFullImage(for photoId: UUID) -> UIImage? {
+    public func getFullImage(for photoId: UUID) -> UIImage? {
         return fullImageCache.get(for: photoId)
     }
     
-    func getThumbnail(for photoId: UUID) -> UIImage? {
+    public func getThumbnail(for photoId: UUID) -> UIImage? {
         return thumbnailCache.get(for: photoId)
     }
     
-    func setFullImage(_ image: UIImage, for photoId: UUID) {
+    public func setFullImage(_ image: UIImage, for photoId: UUID) {
         fullImageCache.set(image, for: photoId)
     }
     
-    func setThumbnail(_ image: UIImage, for photoId: UUID) {
+    public func setThumbnail(_ image: UIImage, for photoId: UUID) {
         thumbnailCache.set(image, for: photoId)
     }
     
-    func removeImages(for photoId: UUID) {
+    public func removeImages(for photoId: UUID) {
         fullImageCache.remove(for: photoId)
         thumbnailCache.remove(for: photoId)
     }
     
-    func removeAll() {
+    public func removeAll() {
         fullImageCache.removeAll()
         thumbnailCache.removeAll()
     }
