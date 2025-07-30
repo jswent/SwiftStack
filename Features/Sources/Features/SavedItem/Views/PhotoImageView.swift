@@ -17,37 +17,15 @@ public struct PhotoImageView: View {
     }
     
     public var body: some View {
-        AsyncImage(url: photo.fileURL) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxHeight: maxHeight)
-            case .failure(_):
-                // Fallback to thumbnail on main image failure
-                AsyncImage(url: photo.thumbnailURL) { thumbnailPhase in
-                    switch thumbnailPhase {
-                    case .success(let thumbnailImage):
-                        thumbnailImage
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: maxHeight)
-                    case .failure(_):
-                        // Final fallback for both image failures
-                        errorPlaceholder
-                    case .empty:
-                        loadingPlaceholder
-                    @unknown default:
-                        errorPlaceholder
-                    }
-                }
-            case .empty:
-                loadingPlaceholder
-            @unknown default:
-                errorPlaceholder
-            }
+        AsyncPhoto(url: photo.fileURL) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxHeight: maxHeight)
+        } placeholder: {
+            loadingPlaceholder
         }
+        .id(photo.id)
         .cornerRadius(8)
     }
     
