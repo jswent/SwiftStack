@@ -14,7 +14,7 @@ public struct AsyncPhoto<Content: View, Placeholder: View>: View {
         case failure
     }
     
-    private let url: URL?
+    private let photo: Photo?
     private let scaledSize: CGSize?
     private let content: (Image) -> Content
     private let placeholder: () -> Placeholder
@@ -22,12 +22,12 @@ public struct AsyncPhoto<Content: View, Placeholder: View>: View {
     @State private var phase: Phase = .loading
     
     public init(
-        url: URL?,
+        photo: Photo?,
         scaledSize: CGSize? = nil,
         @ViewBuilder content: @escaping (Image) -> Content,
         @ViewBuilder placeholder: @escaping () -> Placeholder
     ) {
-        self.url = url
+        self.photo = photo
         self.scaledSize = scaledSize
         self.content = content
         self.placeholder = placeholder
@@ -48,12 +48,27 @@ public struct AsyncPhoto<Content: View, Placeholder: View>: View {
     }
     
     private func loadImage() {
-        guard let url = url else {
+        guard let photo = photo else {
             phase = .failure
             return
         }
         
         Task {
+            // Try cache first
+            if let cachedImage = tryLoadFromCache(photo: photo) {
+                let image = Image(uiImage: cachedImage)
+                await MainActor.run {
+                    phase = .success(image)
+                }
+                return
+            }
+            
+            // Fall back to file loading
+            guard let url = photo.fileURL else {
+                await MainActor.run { phase = .failure }
+                return
+            }
+            
             do {
                 let data = try Data(contentsOf: url)
                 
@@ -68,6 +83,9 @@ public struct AsyncPhoto<Content: View, Placeholder: View>: View {
                     uiImage = originalImage
                 }
                 
+                // Cache the loaded image
+                cacheLoadedImage(uiImage, for: photo)
+                
                 let image = Image(uiImage: uiImage)
                 await MainActor.run {
                     phase = .success(image)
@@ -77,6 +95,20 @@ public struct AsyncPhoto<Content: View, Placeholder: View>: View {
                     phase = .failure
                 }
             }
+        }
+    }
+    
+    private func tryLoadFromCache(photo: Photo) -> UIImage? {
+        let cache = PhotoPreviewCache.shared
+        // Always try full image first for better quality
+        return cache.getFullImage(for: photo.id) ?? cache.getThumbnail(for: photo.id)
+    }
+    
+    private func cacheLoadedImage(_ image: UIImage, for photo: Photo) {
+        Task { @MainActor in
+            let cache = PhotoPreviewCache.shared
+            // Cache as full image (the scaledSize handling is done separately)
+            cache.setFullImage(image, for: photo.id)
         }
     }
     
@@ -100,12 +132,12 @@ public enum AsyncPhotoError: Error {
 // Convenience initializer with default placeholder
 public extension AsyncPhoto where Placeholder == AnyView {
     init(
-        url: URL?,
+        photo: Photo?,
         scaledSize: CGSize? = nil,
         @ViewBuilder content: @escaping (Image) -> Content
     ) {
         self.init(
-            url: url,
+            photo: photo,
             scaledSize: scaledSize,
             content: content,
             placeholder: {

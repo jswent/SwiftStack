@@ -74,9 +74,37 @@ public struct EditSavedItemView: View {
                 
                 modelContext.insert(photo)
                 item.photos.append(photo)
+                
+                // Cache the images asynchronously for immediate display
+                Task.detached {
+                    await self.cacheImagesForPhoto(originalData: data, photo: photo)
+                }
             } catch {
                 print("Error saving photo: \(error)")
             }
+        }
+    }
+    
+    private func cacheImagesForPhoto(originalData: Data, photo: Photo) async {
+        guard let fullImage = UIImage(data: originalData) else { return }
+        
+        // Cache full image on main actor
+        await MainActor.run {
+            PhotoPreviewCache.shared.setFullImage(fullImage, for: photo.id)
+        }
+        
+        // Generate and cache thumbnail if needed
+        do {
+            let thumbnailData = try await MainActor.run {
+                try FileStorage.generateThumbnail(from: originalData)
+            }
+            if let thumbnailImage = UIImage(data: thumbnailData) {
+                await MainActor.run {
+                    PhotoPreviewCache.shared.setThumbnail(thumbnailImage, for: photo.id)
+                }
+            }
+        } catch {
+            print("Error generating thumbnail for cache: \(error)")
         }
     }
     
@@ -91,6 +119,9 @@ public struct EditSavedItemView: View {
             imagePath: photo.filePath,
             thumbnailPath: photo.thumbnailPath
         )
+        
+        // Invalidate cache
+        PhotoPreviewCache.shared.removeImages(for: photo.id)
         
         // Delete from SwiftData
         modelContext.delete(photo)

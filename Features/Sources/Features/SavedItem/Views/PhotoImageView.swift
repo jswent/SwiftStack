@@ -21,7 +21,7 @@ public struct PhotoImageView: View {
     }
     
     public var body: some View {
-        AsyncPhoto(url: photo.fileURL) { image in
+        AsyncPhoto(photo: photo) { image in
             image
                 .resizable()
                 .aspectRatio(contentMode: .fit)
