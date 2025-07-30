@@ -46,6 +46,11 @@ public struct SavedItemDetailView: View {
                         .cornerRadius(8)
                 }
 
+                // Photo carousel, shown only if there are photos
+                if !item.photos.isEmpty {
+                    PhotoCarouselView(photos: item.photos)
+                }
+
                 // Notes binding and expanding text view
                 let notesBinding = Binding(
                     get: { item.notes ?? "" },
