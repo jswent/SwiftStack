@@ -8,12 +8,16 @@
 import SwiftUI
 
 public struct PhotoImageView: View {
-    let photo: Photo
-    let maxHeight: CGFloat
+    private let photo: Photo
+    private let maxHeight: CGFloat
+    private let allPhotos: [Photo]?
     
-    public init(photo: Photo, maxHeight: CGFloat = 300) {
+    @Environment(\.photoPreviewService) private var previewService
+    
+    public init(photo: Photo, maxHeight: CGFloat = 300, allPhotos: [Photo]? = nil) {
         self.photo = photo
         self.maxHeight = maxHeight
+        self.allPhotos = allPhotos
     }
     
     public var body: some View {
@@ -27,6 +31,18 @@ public struct PhotoImageView: View {
         }
         .id(photo.id)
         .cornerRadius(8)
+        .onTapGesture {
+            presentPhoto()
+        }
+    }
+    
+    private func presentPhoto() {
+        if let allPhotos = allPhotos,
+           let currentIndex = allPhotos.firstIndex(where: { $0.id == photo.id }) {
+            previewService.presentPhotos(allPhotos, currentIndex: currentIndex)
+        } else {
+            previewService.presentPhoto(photo)
+        }
     }
     
     private var loadingPlaceholder: some View {

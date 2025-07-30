@@ -30,7 +30,7 @@ public struct PhotoCarouselView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 16) {
                         ForEach(Array(photos.enumerated()), id: \.element.id) { index, photo in
-                            PhotoImageView(photo: photo, maxHeight: maxHeight)
+                            PhotoImageView(photo: photo, maxHeight: maxHeight, allPhotos: photos)
                                 .id(index)
                                 .containerRelativeFrame(.horizontal)
                                 .onAppear {
