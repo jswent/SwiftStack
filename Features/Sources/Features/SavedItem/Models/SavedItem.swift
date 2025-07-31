@@ -9,7 +9,7 @@ import Foundation
 import SwiftData
 
 @Model
-public final class SavedItem: Identifiable {
+public class SavedItem: Identifiable {
     @Attribute(.unique) public var id: UUID
     public var title: String
     public var notes: String?
@@ -20,7 +20,7 @@ public final class SavedItem: Identifiable {
     @Relationship(deleteRule: .cascade)
     public var photos: [Photo] = []
 
-    public init(title: String,
+    public required init(title: String,
          notes: String? = nil,
          url: URL? = nil) {
         self.id = UUID()
@@ -30,6 +30,11 @@ public final class SavedItem: Identifiable {
         let now = Date()
         self.createdAt = now
         self.lastEdited = now
+    }
+    
+    // Mark as edited when properties change
+    public func markAsEdited() {
+        self.lastEdited = Date()
     }
 }
 
