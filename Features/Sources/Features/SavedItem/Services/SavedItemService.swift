@@ -15,6 +15,7 @@ public final class SavedItemService {
     private let searchService: SearchServiceProtocol
     private let taskService: TaskServiceProtocol
     private let projectService: ProjectServiceProtocol
+    private let conversionService: ConversionServiceProtocol
     
     public init(
         savedItemRepository: SavedItemRepositoryProtocol,
@@ -22,7 +23,8 @@ public final class SavedItemService {
         projectRepository: ProjectRepositoryProtocol,
         searchService: SearchServiceProtocol,
         taskService: TaskServiceProtocol,
-        projectService: ProjectServiceProtocol
+        projectService: ProjectServiceProtocol,
+        conversionService: ConversionServiceProtocol
     ) {
         self.savedItemRepository = savedItemRepository
         self.taskRepository = taskRepository
@@ -30,6 +32,7 @@ public final class SavedItemService {
         self.searchService = searchService
         self.taskService = taskService
         self.projectService = projectService
+        self.conversionService = conversionService
     }
     
     // MARK: - Convenience Factory
@@ -44,6 +47,7 @@ public final class SavedItemService {
             projectRepository: projectRepository
         )
         let projectService = ProjectService(projectRepository: projectRepository)
+        let conversionService = ConversionService(modelContext: modelContext)
         
         return SavedItemService(
             savedItemRepository: savedItemRepository,
@@ -51,7 +55,8 @@ public final class SavedItemService {
             projectRepository: projectRepository,
             searchService: searchService,
             taskService: taskService,
-            projectService: projectService
+            projectService: projectService,
+            conversionService: conversionService
         )
     }
     
@@ -135,6 +140,31 @@ public final class SavedItemService {
     
     public func getProjectSummary(_ project: ProjectItem) -> ProjectSummary {
         return projectService.getProjectSummary(project)
+    }
+    
+    // MARK: - Conversion Operations
+    
+    public func convertToTask(
+        _ item: SavedItem,
+        status: TaskStatus = .todo,
+        priority: TaskPriority? = nil,
+        dueDate: Date? = nil,
+        estimatedDuration: TimeInterval? = nil
+    ) -> ConversionResult<TaskItem> {
+        return conversionService.convertToTask(item, status: status, priority: priority, dueDate: dueDate, estimatedDuration: estimatedDuration)
+    }
+    
+    public func convertToProject(
+        _ item: SavedItem,
+        status: ProjectStatus = .notStarted,
+        startDate: Date? = nil,
+        targetCompletionDate: Date? = nil
+    ) -> ConversionResult<ProjectItem> {
+        return conversionService.convertToProject(item, status: status, startDate: startDate, targetCompletionDate: targetCompletionDate)
+    }
+    
+    public func convertTaskToProject(_ task: TaskItem, preserveData: Bool = true) -> ConversionResult<ProjectItem> {
+        return conversionService.convertTaskToProject(task, preserveData: preserveData)
     }
     
     // MARK: - Legacy Compatibility Methods
