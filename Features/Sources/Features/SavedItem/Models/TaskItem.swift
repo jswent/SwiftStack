@@ -15,8 +15,8 @@ public final class TaskItem: SavedItem {
     public var dueDate: Date?
     public var estimatedDuration: TimeInterval?
 
-    //    @Relationship(deleteRule: .nullify)
-    //    public var project: ProjectItem?
+        @Relationship(deleteRule: .nullify)
+        public var project: ProjectItem?
 
     public init(
         title: String,

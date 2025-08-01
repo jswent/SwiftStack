@@ -1,5 +1,5 @@
 //
-//  SavedItemQueryService.swift
+//  SavedItemService.swift
 //  Features
 //
 //  Created by James Swent on 7/30/25.
@@ -8,15 +8,14 @@
 import SwiftData
 import Foundation
 
-// MARK: - Comprehensive Query Service
-class SavedItemQueryService {
+class SavedItemService {
     private let modelContext: ModelContext
     
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
     
-    // MARK: - 1. Polymorphic Queries (All Items at Once)
+    // MARK: - Querying Patterns
     
     /// Get ALL items regardless of type - this is the magic of inheritance!
     func getAllItems() -> [SavedItem] {
@@ -44,7 +43,7 @@ class SavedItemQueryService {
         }
     }
     
-    // MARK: - 2. Type-Specific Queries
+    // MARK: - Type-Specific Queries
     
     /// Get only base SavedItems (not tasks or projects)
     func getBaseSavedItemsOnly() -> [SavedItem] {
@@ -58,16 +57,24 @@ class SavedItemQueryService {
     func getAllTasks() -> [TaskItem] {
         let descriptor = FetchDescriptor<TaskItem>(
             sortBy: [
-                SortDescriptor<TaskItem>(\.status.sortOrder),
-                SortDescriptor<TaskItem>(\.priority.sortOrder, order: .reverse),
-                SortDescriptor<TaskItem>(\.dueDate)
+                SortDescriptor(\.status.sortOrder),
+//                SortDescriptor(\.priority.sortOrder, order: .reverse),
+                SortDescriptor(\.dueDate)
             ]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+    
+    // Get only projects
+    func getAllProjects() -> [ProjectItem] {
+        let descriptor = FetchDescriptor<ProjectItem>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         return (try? modelContext.fetch(descriptor)) ?? []
     }
 
     
-    // MARK: - 3. Advanced Filtering Across Types
+    // MARK: - Advanced Filtering Across Types
     
     /// Search across all items by title
     func searchAllItems(containing searchText: String) -> [SavedItem] {
@@ -105,6 +112,19 @@ class SavedItemQueryService {
         return (try? modelContext.fetch(descriptor)) ?? []
     }
     
+    // Get tasks by status
+    func getTasks(withStatus status: TaskStatus) -> [TaskItem] {
+        let predicate = #Predicate<TaskItem> { task in
+            task.status == status
+        }
+        
+        let descriptor = FetchDescriptor<TaskItem>(
+            predicate: predicate,
+//            sortBy: [SortDescriptor(\.priority.sortOrder, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+    
     // MARK: - 4. Complex Relationship Queries
     
     /// Get all items that have photos
@@ -126,8 +146,6 @@ class SavedItemQueryService {
         let descriptor = FetchDescriptor<SavedItem>(predicate: predicate)
         return (try? modelContext.fetch(descriptor)) ?? []
     }
-    
-    // MARK: - 5. Task-Specific Queries That Work on Base Class
     
     /// Get overdue items (works because we check if it's a task)
     func getOverdueItems() -> [SavedItem] {
@@ -152,5 +170,33 @@ class SavedItemQueryService {
             }
         }
     }
+    
+    // MARK: - Business Logic
+        
+    func completeTask(_ task: TaskItem) {
+        task.markAsDone()
+        
+        // Update parent project progress if exists
+        if let project = task.project {
+            project.updateProgress()
+        }
+        
+        try? modelContext.save()
+    }
+    
+    func cancelTask(_ task: TaskItem) {
+            task.markAsCanceled()
+            
+            // Update parent project progress if exists
+            if let project = task.project {
+                project.updateProgress()
+            }
+            
+            try? modelContext.save()
+        }
+        
+        func addTaskToProject(_ task: TaskItem, project: ProjectItem) {
+            project.addTask(task)
+            try? modelContext.save()
+        }
 }
-
