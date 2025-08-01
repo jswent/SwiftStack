@@ -8,195 +8,158 @@
 import SwiftData
 import Foundation
 
-class SavedItemService {
-    private let modelContext: ModelContext
+public final class SavedItemService {
+    private let savedItemRepository: SavedItemRepositoryProtocol
+    private let taskRepository: TaskRepositoryProtocol
+    private let projectRepository: ProjectRepositoryProtocol
+    private let searchService: SearchServiceProtocol
+    private let taskService: TaskServiceProtocol
+    private let projectService: ProjectServiceProtocol
     
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
+    public init(
+        savedItemRepository: SavedItemRepositoryProtocol,
+        taskRepository: TaskRepositoryProtocol,
+        projectRepository: ProjectRepositoryProtocol,
+        searchService: SearchServiceProtocol,
+        taskService: TaskServiceProtocol,
+        projectService: ProjectServiceProtocol
+    ) {
+        self.savedItemRepository = savedItemRepository
+        self.taskRepository = taskRepository
+        self.projectRepository = projectRepository
+        self.searchService = searchService
+        self.taskService = taskService
+        self.projectService = projectService
     }
     
-    // MARK: - Querying Patterns
+    // MARK: - Convenience Factory
     
-    /// Get ALL items regardless of type - this is the magic of inheritance!
-    func getAllItems() -> [SavedItem] {
-        let descriptor = FetchDescriptor<SavedItem>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+    public static func create(with modelContext: ModelContext) -> SavedItemService {
+        let savedItemRepository = SavedItemRepository(modelContext: modelContext)
+        let taskRepository = TaskRepository(modelContext: modelContext)
+        let projectRepository = ProjectRepository(modelContext: modelContext)
+        let searchService = SearchService(modelContext: modelContext)
+        let taskService = TaskService(
+            taskRepository: taskRepository,
+            projectRepository: projectRepository
         )
-        return (try? modelContext.fetch(descriptor)) ?? []
+        let projectService = ProjectService(projectRepository: projectRepository)
+        
+        return SavedItemService(
+            savedItemRepository: savedItemRepository,
+            taskRepository: taskRepository,
+            projectRepository: projectRepository,
+            searchService: searchService,
+            taskService: taskService,
+            projectService: projectService
+        )
     }
     
-    /// Get all items with type information preserved
-    func getAllItemsWithTypes() -> (items: [SavedItem], tasks: [TaskItem]) {
-        let allItems = getAllItems()
+    // MARK: - SavedItem Operations
+    
+    public func getAllItems() throws -> [SavedItem] {
+        return try savedItemRepository.fetchAll()
+    }
+    
+    public func getBaseSavedItemsOnly() throws -> [SavedItem] {
+        return try savedItemRepository.fetchBaseSavedItemsOnly()
+    }
+    
+    public func getRecentItems(limit: Int = 10) throws -> [SavedItem] {
+        return try savedItemRepository.fetchRecent(limit: limit)
+    }
+    
+    public func getItemsWithPhotos() throws -> [SavedItem] {
+        return try savedItemRepository.fetchWithPhotos()
+    }
+    
+    public func getItemsWithUrls() throws -> [SavedItem] {
+        return try savedItemRepository.fetchWithUrls()
+    }
+    
+    // MARK: - Task Operations
+    
+    public func getAllTasks() throws -> [TaskItem] {
+        return try taskRepository.fetchAll()
+    }
+    
+    public func getTasks(withStatus status: TaskStatus) throws -> [TaskItem] {
+        return try taskRepository.fetch(withStatus: status)
+    }
+    
+    public func getActiveTasks() throws -> [TaskItem] {
+        return try taskRepository.fetchActive()
+    }
+    
+    public func getOverdueTasks() throws -> [TaskItem] {
+        return try taskRepository.fetchOverdue()
+    }
+    
+    // MARK: - Project Operations
+    
+    public func getAllProjects() throws -> [ProjectItem] {
+        return try projectRepository.fetchAll()
+    }
+    
+    public func getActiveProjects() throws -> [ProjectItem] {
+        return try projectRepository.fetchActive()
+    }
+    
+    // MARK: - Search Operations
+    
+    public func searchItems(containing searchText: String) throws -> [SavedItem] {
+        return try searchService.searchItems(containing: searchText)
+    }
+    
+    public func searchItemsGroupedByType(containing searchText: String) throws -> [String: [SavedItem]] {
+        return try searchService.searchItemsGroupedByType(containing: searchText)
+    }
+    
+    // MARK: - Business Logic Operations
+    
+    public func completeTask(_ task: TaskItem) throws {
+        try taskService.completeTask(task)
+    }
+    
+    public func cancelTask(_ task: TaskItem) throws {
+        try taskService.cancelTask(task)
+    }
+    
+    public func addTaskToProject(_ task: TaskItem, project: ProjectItem) throws {
+        try taskService.addTaskToProject(task, project: project)
+    }
+    
+    public func updateProjectStatus(_ project: ProjectItem, status: ProjectStatus) throws {
+        try projectService.updateProjectStatus(project, status: status)
+    }
+    
+    public func getProjectSummary(_ project: ProjectItem) -> ProjectSummary {
+        return projectService.getProjectSummary(project)
+    }
+    
+    // MARK: - Legacy Compatibility Methods
+    
+    @available(*, deprecated, message: "Use searchItems(containing:) instead")
+    public func searchAllItems(containing searchText: String) throws -> [SavedItem] {
+        return try searchItems(containing: searchText)
+    }
+    
+    @available(*, deprecated, message: "Use getAllItems() instead")
+    public func getAllItemsWithTypes() throws -> (items: [SavedItem], tasks: [TaskItem]) {
+        let allItems = try getAllItems()
         let tasks = allItems.compactMap { $0 as? TaskItem }
         return (allItems, tasks)
     }
     
-    /// Get all items grouped by type
-    func getAllItemsGroupedByType() -> [String: [SavedItem]] {
-        let allItems = getAllItems()
+    @available(*, deprecated, message: "Use searchItemsGroupedByType(containing:) instead")
+    public func getAllItemsGroupedByType() throws -> [String: [SavedItem]] {
+        let allItems = try getAllItems()
         return Dictionary(grouping: allItems) { item in
             switch item {
             case is TaskItem: return "Tasks"
+            case is ProjectItem: return "Projects"
             default: return "Items"
             }
         }
     }
-    
-    // MARK: - Type-Specific Queries
-    
-    /// Get only base SavedItems (not tasks or projects)
-    func getBaseSavedItemsOnly() -> [SavedItem] {
-        let allItems = getAllItems()
-        return allItems.filter { item in
-            type(of: item) == SavedItem.self // Exact type match
-        }
-    }
-    
-    /// Get only tasks
-    func getAllTasks() -> [TaskItem] {
-        let descriptor = FetchDescriptor<TaskItem>(
-            sortBy: [
-                SortDescriptor(\.status.sortOrder),
-//                SortDescriptor(\.priority.sortOrder, order: .reverse),
-                SortDescriptor(\.dueDate)
-            ]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-    
-    // Get only projects
-    func getAllProjects() -> [ProjectItem] {
-        let descriptor = FetchDescriptor<ProjectItem>(
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    
-    // MARK: - Advanced Filtering Across Types
-    
-    /// Search across all items by title
-    func searchAllItems(containing searchText: String) -> [SavedItem] {
-        let predicate = #Predicate<SavedItem> { item in
-            item.title.localizedStandardContains(searchText) ||
-            (item.notes?.localizedStandardContains(searchText) ?? false)
-        }
-        
-        let descriptor = FetchDescriptor<SavedItem>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\.lastEdited, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-    
-    /// Get recent items across all types
-    func getRecentItems(limit: Int = 10) -> [SavedItem] {
-        var descriptor = FetchDescriptor<SavedItem>(
-            sortBy: [SortDescriptor(\.lastEdited, order: .reverse)]
-        )
-        descriptor.fetchLimit = limit
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-    
-    /// Get items created in date range (all types)
-    func getItemsCreated(from startDate: Date, to endDate: Date) -> [SavedItem] {
-        let predicate = #Predicate<SavedItem> { item in
-            item.createdAt >= startDate && item.createdAt <= endDate
-        }
-        
-        let descriptor = FetchDescriptor<SavedItem>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-    
-    // Get tasks by status
-    func getTasks(withStatus status: TaskStatus) -> [TaskItem] {
-        let predicate = #Predicate<TaskItem> { task in
-            task.status == status
-        }
-        
-        let descriptor = FetchDescriptor<TaskItem>(
-            predicate: predicate,
-//            sortBy: [SortDescriptor(\.priority.sortOrder, order: .reverse)]
-        )
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-    
-    // MARK: - 4. Complex Relationship Queries
-    
-    /// Get all items that have photos
-    func getItemsWithPhotos() -> [SavedItem] {
-        let predicate = #Predicate<SavedItem> { item in
-            !item.photos.isEmpty
-        }
-        
-        let descriptor = FetchDescriptor<SavedItem>(predicate: predicate)
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-    
-    /// Get all items with URLs
-    func getItemsWithUrls() -> [SavedItem] {
-        let predicate = #Predicate<SavedItem> { item in
-            item.url != nil
-        }
-        
-        let descriptor = FetchDescriptor<SavedItem>(predicate: predicate)
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-    
-    /// Get overdue items (works because we check if it's a task)
-    func getOverdueItems() -> [SavedItem] {
-        let allItems = getAllItems()
-        return allItems.filter { item in
-            if let task = item as? TaskItem {
-                return task.isOverdue
-            }
-            return false
-        }
-    }
-    
-    /// Get active work items (tasks in progress + active projects)
-    func getActiveWorkItems() -> [SavedItem] {
-        let allItems = getAllItems()
-        return allItems.filter { item in
-            switch item {
-            case let task as TaskItem:
-                return task.isActive
-            default:
-                return false
-            }
-        }
-    }
-    
-    // MARK: - Business Logic
-        
-    func completeTask(_ task: TaskItem) {
-        task.markAsDone()
-        
-        // Update parent project progress if exists
-        if let project = task.project {
-            project.updateProgress()
-        }
-        
-        try? modelContext.save()
-    }
-    
-    func cancelTask(_ task: TaskItem) {
-            task.markAsCanceled()
-            
-            // Update parent project progress if exists
-            if let project = task.project {
-                project.updateProgress()
-            }
-            
-            try? modelContext.save()
-        }
-        
-        func addTaskToProject(_ task: TaskItem, project: ProjectItem) {
-            project.addTask(task)
-            try? modelContext.save()
-        }
 }
