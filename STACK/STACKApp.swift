@@ -46,14 +46,16 @@ struct SwiftUISampleAppApp: App {
 // MARK: - Shared Model Container
 
 private func createSharedModelContainer() throws -> ModelContainer {
-    let schema = Schema([SavedItem.self, Photo.self])
     let configuration = ModelConfiguration(
-        schema: schema,
         allowsSave: true,
-        groupContainer: .identifier("group.com.jswent.STACK"),
+        groupContainer: .identifier("group.com.jswent.STACK")
     )
     
-    return try ModelContainer(for: schema, configurations: [configuration])
+    return try ModelContainer(
+        for: SavedItem.self, Photo.self,
+        migrationPlan: SavedItemMigrationPlan.self,
+        configurations: configuration
+    )
 }
 
 private func setupDarwinNotificationObserver() {

@@ -271,15 +271,17 @@ private extension ShareExtensionFormView {
 
 enum SharedModelContainer {
     static let container: ModelContainer = {
-        let schema = Schema([SavedItem.self])
         let configuration = ModelConfiguration(
-            schema: schema,
             allowsSave: true,
             groupContainer: .identifier("group.com.jswent.STACK")
         )
         
         do {
-            return try ModelContainer(for: schema, configurations: [configuration])
+            return try ModelContainer(
+                for: SavedItem.self, Photo.self,
+                migrationPlan: SavedItemMigrationPlan.self,
+                configurations: configuration
+            )
         } catch {
             fatalError("Failed to create shared ModelContainer: \(error)")
         }
