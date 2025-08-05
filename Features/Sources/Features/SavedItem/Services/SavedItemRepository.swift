@@ -16,16 +16,29 @@ public enum RepositoryError: Error {
 
 public protocol SavedItemRepositoryProtocol {
     func fetchAll() throws -> [SavedItem]
-    func fetchBaseSavedItemsOnly() throws -> [SavedItem]
+    func fetchByType(_ type: SavedItemType) throws -> [SavedItem]
     func fetchRecent(limit: Int) throws -> [SavedItem]
     func fetchCreated(from startDate: Date, to endDate: Date) throws -> [SavedItem]
     func fetchWithPhotos() throws -> [SavedItem]
     func fetchWithUrls() throws -> [SavedItem]
+    
+    // Task-specific queries
+    func fetchTasks(withStatus status: TaskStatus) throws -> [SavedItem]
+    func fetchActiveTasks() throws -> [SavedItem]
+    func fetchOverdueTasks() throws -> [SavedItem]
+    func fetchTasksForProject(_ projectId: UUID) throws -> [SavedItem]
+    
+    // Project-specific queries
+    func fetchProjects(withStatus status: ProjectStatus) throws -> [SavedItem]
+    func fetchActiveProjects() throws -> [SavedItem]
+    func fetchOverdueProjects() throws -> [SavedItem]
+    
     func save() throws
 }
 
+
 public final class SavedItemRepository: SavedItemRepositoryProtocol {
-    private let modelContext: ModelContext
+    internal let modelContext: ModelContext
     
     public init(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -42,9 +55,23 @@ public final class SavedItemRepository: SavedItemRepositoryProtocol {
         }
     }
     
-    public func fetchBaseSavedItemsOnly() throws -> [SavedItem] {
-        let allItems = try fetchAll()
-        return allItems.filter { type(of: $0) == SavedItem.self }
+    public func fetchByType(_ type: SavedItemType) throws -> [SavedItem] {
+        // Use raw value to avoid SwiftData enum comparison issues
+        let typeRawValue = type.rawValue
+        let predicate = #Predicate<SavedItem> { item in
+            item.type.rawValue == typeRawValue
+        }
+        
+        let descriptor = FetchDescriptor<SavedItem>(
+            predicate: predicate,
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        
+        do {
+            return try modelContext.fetch(descriptor)
+        } catch {
+            throw RepositoryError.fetchFailed(error)
+        }
     }
     
     public func fetchRecent(limit: Int = 10) throws -> [SavedItem] {
