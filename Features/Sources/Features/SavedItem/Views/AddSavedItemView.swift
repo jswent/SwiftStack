@@ -17,12 +17,14 @@ public struct AddSavedItemView: View {
     @State private var title: String
     @State private var urlString: String
     @State private var notes: String
+    @State private var type: SavedItemType = .item
     @State private var photos: [Photo] = []
     
-    public init(initialTitle: String = "", initialURL: String = "", initialNotes: String = "") {
+    public init(initialTitle: String = "", initialURL: String = "", initialNotes: String = "", initialType: SavedItemType = .item) {
         _title = State(initialValue: initialTitle)
         _urlString = State(initialValue: initialURL)
         _notes = State(initialValue: initialNotes)
+        _type = State(initialValue: initialType)
     }
 
     public var body: some View {
@@ -31,6 +33,7 @@ public struct AddSavedItemView: View {
                 title: $title,
                 urlString: $urlString,
                 notes: $notes,
+                type: $type,
                 photos: photos,
                 onAddPhotos: addPhotos,
                 onDeletePhoto: deletePhoto,
@@ -118,7 +121,8 @@ public struct AddSavedItemView: View {
         let newItem = SavedItem(
             title: title,
             notes: notes.isEmpty ? nil : notes,
-            url: url
+            url: url,
+            type: type
         )
         
         // Link all photos to the new item and mark them as linked

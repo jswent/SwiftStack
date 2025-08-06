@@ -96,6 +96,7 @@ struct ShareExtensionFormView: View {
     @State private var title: String
     @State private var urlString: String
     @State private var notes: String
+    @State private var type: SavedItemType = .item
     @State private var photos: [Photo] = []
     @State private var isProcessingPhotos = false
     
@@ -113,6 +114,7 @@ struct ShareExtensionFormView: View {
                 title: $title,
                 urlString: $urlString,
                 notes: $notes,
+                type: $type,
                 photos: photos,
                 onAddPhotos: { _ in }, // Disable adding new photos in share extension
                 onDeletePhoto: deletePhoto,
@@ -215,7 +217,8 @@ private extension ShareExtensionFormView {
         let newItem = SavedItem(
             title: title,
             notes: notes.isEmpty ? nil : notes,
-            url: url
+            url: url,
+            type: type
         )
         
         // Link all photos to the new item and mark them as linked

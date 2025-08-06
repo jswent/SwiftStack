@@ -43,6 +43,7 @@ public struct EditSavedItemView: View {
                 title: $item.title,
                 urlString: urlString,
                 notes: notesString,
+                type: $item.type,
                 photos: item.photos,
                 onAddPhotos: addPhotos,
                 onDeletePhoto: deletePhoto,
@@ -128,7 +129,8 @@ public struct EditSavedItemView: View {
     }
 
     private func finalizeEdit() {
-        item.lastEdited = Date()
+        item.validateAndFix()
+        item.markAsEdited()
         dismiss()
     }
 }

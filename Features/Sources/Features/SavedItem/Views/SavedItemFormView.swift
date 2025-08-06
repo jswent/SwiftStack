@@ -16,6 +16,7 @@ public struct SavedItemFormView: View {
     @Binding var title: String
     @Binding var urlString: String
     @Binding var notes: String
+    @Binding var type: SavedItemType
     let photos: [Photo]
     let onAddPhotos: ([Data]) async -> Void
     let onDeletePhoto: (Photo) -> Void
@@ -31,6 +32,7 @@ public struct SavedItemFormView: View {
         title: Binding<String>,
         urlString: Binding<String>,
         notes: Binding<String>,
+        type: Binding<SavedItemType>,
         photos: [Photo] = [],
         onAddPhotos: @escaping ([Data]) async -> Void = { _ in },
         onDeletePhoto: @escaping (Photo) -> Void = { _ in },
@@ -40,6 +42,7 @@ public struct SavedItemFormView: View {
         self._title = title
         self._urlString = urlString
         self._notes = notes
+        self._type = type
         self.photos = photos
         self.onAddPhotos = onAddPhotos
         self.onDeletePhoto = onDeletePhoto
@@ -50,7 +53,7 @@ public struct SavedItemFormView: View {
     /// Show "New Item" when title is blank, otherwise show the title.
     private var navTitle: String {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "New Item" : trimmed
+        return trimmed.isEmpty ? "New \(type.displayName)" : trimmed
     }
 
     /// Trim whitespace for URL parsing.
@@ -68,67 +71,12 @@ public struct SavedItemFormView: View {
 
     public var body: some View {
         Form {
-            Section("Title") {
-                TextField("Enter title", text: $title)
-            }
-
-            Section("URL") {
-                TextField("Enter URL", text: $urlString)
-                    .keyboardType(.URL)
-                    .autocapitalization(.none)
-            }
-
-            // Live link preview under the URL field
-            if let url = previewURL {
-                    LinkPreview(url: url)
-                        .frame(minHeight: 80)
-                        .cornerRadius(8)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
-            }
-
-            // Photos Section
-            Section("Photos") {
-                PhotosPicker(
-                    selection: $pickerItems,
-                    maxSelectionCount: 0, // unlimited
-                    matching: .images
-                ) {
-                    Label("Add Photos", systemImage: "photo.on.rectangle.angled")
-                }
-                .disabled(isProcessingPhotos)
-                
-                if !photos.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        VStack {
-                            HStack(spacing: 12) {
-                                ForEach(photos, id: \.id) { photo in
-                                    PhotoThumbnailView(photo: photo) {
-                                        photoToDelete = photo
-                                        showingDeleteConfirmation = true
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                }
-                
-                if isProcessingPhotos {
-                    HStack {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Processing photos...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            // Notes Section
-            Section("Notes") {
-                TextEditor(text: $notes)
-                    .frame(minHeight: 100)
-            }
+            typeSection
+            titleSection
+            urlSection
+            previewSection
+            photosSection
+            notesSection
         }
         .navigationTitle(navTitle)
         .onChange(of: pickerItems) { _, items in
@@ -180,7 +128,97 @@ public struct SavedItemFormView: View {
         // Clear the picker selection
         pickerItems = []
     }
+    
+    // MARK: - Input Sections
+
+    private var typeSection: some View {
+        Section("Type") {
+            HStack {
+                Picker(selection: $type, label: EmptyView()) {
+                    ForEach(SavedItemType.allCases, id: \.self) { itemType in
+                        Label("   " + itemType.displayName, systemImage: itemType.systemImage)
+                            .tag(itemType)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .padding(.leading, -12)
+            }
+        }
+    }
+
+    private var titleSection: some View {
+        Section("Title") {
+            TextField("Enter title", text: $title)
+        }
+    }
+
+    private var urlSection: some View {
+        Section("URL") {
+            TextField("Enter URL", text: $urlString)
+                .keyboardType(.URL)
+                .autocapitalization(.none)
+        }
+    }
+
+    @ViewBuilder
+    private var previewSection: some View {
+        if let url = previewURL {
+            LinkPreview(url: url)
+                .frame(minHeight: 80)
+                .cornerRadius(8)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+        }
+    }
+
+    private var photosSection: some View {
+        Section("Photos") {
+            PhotosPicker(
+                selection: $pickerItems,
+                maxSelectionCount: 0,
+                matching: .images
+            ) {
+                Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+            }
+            .disabled(isProcessingPhotos)
+
+            if !photos.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    VStack {
+                        HStack(spacing: 12) {
+                            ForEach(photos, id: \.id) { photo in
+                                PhotoThumbnailView(photo: photo) {
+                                    photoToDelete = photo
+                                    showingDeleteConfirmation = true
+                                }
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+
+            if isProcessingPhotos {
+                HStack {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                    Text("Processing photos...")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    private var notesSection: some View {
+        Section("Notes") {
+            TextEditor(text: $notes)
+                .frame(minHeight: 100)
+        }
+    }
 }
+
 
 // MARK: - Photo Thumbnail View
 
@@ -219,7 +257,7 @@ private struct PhotoThumbnailView: View {
     let container = try! ModelContainer(for: schema)
     AddSavedItemView()
         .modelContainer(container)
-    EditSavedItemView(item: SavedItem(title: "Example", notes: "Note", url: URL(string: "https://example.com")))
+    EditSavedItemView(item: SavedItem(title: "Example", notes: "Note", url: URL(string: "https://example.com"), type: .item))
         .modelContainer(container)
 }
 

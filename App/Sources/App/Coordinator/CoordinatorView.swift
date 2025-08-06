@@ -47,7 +47,8 @@ public struct CoordinatorView: View {
                             AddSavedItemView(
                                 initialTitle: parameters.title ?? "",
                                 initialURL: parameters.url ?? "",
-                                initialNotes: parameters.notes ?? ""
+                                initialNotes: parameters.notes ?? "",
+                                initialType: .item
                             )
                         } else {
                             AddSavedItemView()
