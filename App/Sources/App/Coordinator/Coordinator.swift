@@ -18,10 +18,7 @@ import SwiftData
 final class Coordinator {
     var path = NavigationPath()
     private var currentScreen: Screen = .home
-    var showingAddItemSheet = false
-    var addItemParameters: URLRoute.AddItemParameters?
-    var showingEditItemSheet = false
-    var editItemParameters: SavedItem?
+    var presentedSheet: SheetType?
 
     private let container: Container
     private let urlCoordinator: URLCoordinator
@@ -111,9 +108,8 @@ final class Coordinator {
             showSavedItems()
         }
         
-        // Store the parameters for the add item sheet
-        addItemParameters = parameters
-        showingAddItemSheet = true
+        // Present the add item sheet with parameters
+        presentedSheet = .addItem(parameters)
     }
     
     // MARK: - URL Handling
@@ -145,13 +141,12 @@ final class Coordinator {
 
     private func showAddSavedItem() {
         Logger.appFlow.debug("Showing add saved item sheet")
-        showingAddItemSheet = true
+        presentedSheet = .addItem(nil)
     }
 
     private func showEditSavedItem(item: SavedItem) {
         Logger.appFlow.debug("Showing edit saved item sheet [title: \(item.title)]")
-        editItemParameters = item
-        showingEditItemSheet = true
+        presentedSheet = .editItem(item)
     }
 
     private func showAbout() {
@@ -203,6 +198,25 @@ final class Coordinator {
             }
         case .libraries:
             LibrariesView()
+        }
+    }
+    
+    @ViewBuilder
+    func buildSheet(for sheetType: SheetType) -> some View {
+        switch sheetType {
+        case .addItem(let parameters):
+            if let parameters = parameters {
+                AddSavedItemView(
+                    initialTitle: parameters.title ?? "",
+                    initialURL: parameters.url ?? "",
+                    initialNotes: parameters.notes ?? "",
+                    initialType: .item
+                )
+            } else {
+                AddSavedItemView()
+            }
+        case .editItem(let item):
+            EditSavedItemView(item: item)
         }
     }
 }

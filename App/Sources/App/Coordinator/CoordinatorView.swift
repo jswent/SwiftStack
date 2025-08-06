@@ -32,41 +32,11 @@ public struct CoordinatorView: View {
                             coordinator.build(screen: screen)
                         }
                 }
-                .sheet(isPresented: .init(
-                    get: { coordinator.showingAddItemSheet },
-                    set: { newValue in
-                        coordinator.showingAddItemSheet = newValue
-                        if !newValue {
-                            // Clear parameters when sheet is dismissed
-                            coordinator.addItemParameters = nil
-                        }
-                    }
-                )) {
-                    // NavigationStack {
-                        if let parameters = coordinator.addItemParameters {
-                            AddSavedItemView(
-                                initialTitle: parameters.title ?? "",
-                                initialURL: parameters.url ?? "",
-                                initialNotes: parameters.notes ?? "",
-                                initialType: .item
-                            )
-                        } else {
-                            AddSavedItemView()
-                        }
-                    // }
-                }
-                .sheet(isPresented: .init(
-                    get: { coordinator.showingEditItemSheet },
-                    set: { newValue in
-                        coordinator.showingEditItemSheet = newValue
-                        if !newValue {
-                            coordinator.editItemParameters = nil
-                        }
-                    }
-                )) {
-                    if let item = coordinator.editItemParameters {
-                        EditSavedItemView(item: item)
-                    }
+                .sheet(item: .init(
+                    get: { coordinator.presentedSheet },
+                    set: { coordinator.presentedSheet = $0 }
+                )) { sheetType in
+                    coordinator.buildSheet(for: sheetType)
                 }
                 .onOpenURL { url in
                     Task {
